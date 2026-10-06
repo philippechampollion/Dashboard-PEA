@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mon PEA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0e1215;--s:#161c20;--s2:#1e262b;--tx:#e8edf0;--mu:#8795a0;--up:#3fb68b;--dn:#e5626b;--ac:#8fb4ff;--bd:#2a343a}
+[data-theme=light]{--bg:#f4f6f7;--s:#fff;--s2:#eef1f3;--tx:#14191c;--mu:#5f6d77;--up:#17895f;--dn:#c8404a;--ac:#2f5fd0;--bd:#d9e0e4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 'IBM Plex Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:env(safe-area-inset-bottom) 0}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 14px 0;border-bottom:1px solid var(--bd)}
+.row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;justify-content:space-between}
+#total{font-size:30px;font-weight:600;letter-spacing:-.02em}.mu{color:var(--mu);font-size:13px}.up{color:var(--up)}.dn{color:var(--dn)}
+.bar{height:6px;background:var(--s2);border-radius:3px;margin:10px 0 6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+nav{display:flex;gap:2px;overflow-x:auto}nav button{background:none;border:0;border-bottom:2px solid transparent;color:var(--mu);padding:10px 12px;font:inherit;white-space:nowrap;cursor:pointer}
+nav button.on{color:var(--tx);border-color:var(--ac)}
+main{max-width:1000px;margin:0 auto;padding:14px}
+.card{background:var(--s);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+button.b,select,input,textarea{font:inherit;color:var(--tx);background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+button.b{cursor:pointer}button.pri{background:var(--ac);color:#0b1020;border-color:var(--ac);font-weight:600}button:disabled{opacity:.5}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac)}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mu);font-weight:500;cursor:pointer;font-size:13px}th:first-child,td:first-child{text-align:left}
+.badge{font-size:11px;background:var(--s2);color:var(--mu);border-radius:4px;padding:1px 5px;margin-left:4px}
+dialog{background:var(--s);color:var(--tx);border:1px solid var(--bd);border-radius:12px;width:min(480px,94vw);padding:16px}dialog::backdrop{background:#0008}
+label{display:block;margin:8px 0 2px;color:var(--mu);font-size:13px}label+input,label+select,label+textarea{width:100%}
+.sk{height:60px;border-radius:10px;background:linear-gradient(90deg,var(--s) 25%,var(--s2) 50%,var(--s) 75%);background-size:200%;animation:sk 1.2s infinite;margin-bottom:14px}@keyframes sk{to{background-position:-200%}}
+#res button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--bd);color:var(--tx);padding:8px;cursor:pointer}
+.err{color:var(--dn);margin:8px 0}.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd)}
+@media(prefers-reduced-motion:reduce){.sk{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div><div class="mu">Valeur du PEA <span id="ts"></span></div><div id="total">…</div></div>
+    <div><div class="mu">Performance</div><div id="perf"></div></div>
+    <div><div class="mu">Aujourd’hui</div><div id="day"></div></div>
+    <div style="display:flex;gap:8px"><button class="b" id="refresh">Rafraîchir</button><button class="b pri" id="add">+ Transaction</button></div>
+  </div>
+  <div class="bar"><i id="plaf"></i></div>
+  <div class="mu" id="plaftxt"></div>
+  <nav id="nav"></nav>
+</header>
+<main id="view"><div class="sk"></div><div class="sk"></div><div class="sk"></div></main>
+
+<dialog id="dlg"><form id="frm" method="dialog">
+  <h3 id="dtitle" style="margin:0 0 6px">Nouvelle transaction</h3>
+  <label>Type</label><select name="type" id="ftype"><option>Achat</option><option>Vente</option><option>Dividende</option><option>Versement</option><option>Retrait</option></select>
+  <div class="tonly">
+    <label>Titre (nom, ticker ou ISIN)</label><input id="fq" autocomplete="off"><div id="res"></div>
+    <label>Ticker</label><input name="ticker" placeholder="CW8.PA"><label>ISIN</label><input name="isin" maxlength="12">
+    <label>Nom</label><input name="nom">
+    <div class="row" style="align-items:flex-start"><div><label>Type de titre</label><select name="ttype"><option>ETF</option><option>Action</option></select></div>
+    <div><label>Secteur</label><input name="secteur"></div><div><label>Zone</label><input name="zone"></div></div>
+    <label>Quantité</label><input name="quantite" type="number" step="any" min="0">
+  </div>
+  <label>Date</label><input name="date" type="date" required>
+  <label id="lprix">Prix unitaire (€)</label><input name="prix_unitaire" type="number" step="any" min="0" required>
+  <label>Frais de courtage (€)</label><input name="frais" type="number" step="any" min="0" value="0">
+  <label>Commentaire</label><input name="commentaire" maxlength="200">
+  <div class="err" id="ferr"></div>
+  <div class="row" style="margin-top:10px"><button type="button" class="b" id="cancel">Annuler</button><button class="b pri" id="save">Enregistrer</button></div>
+</form></dialog>
+
+<script type="module">
+import {computePositions,valuePortfolio,xirr,maxDrawdown,volatility} from './calc.js';
+const $=s=>document.querySelector(s), PLAF=150000, CASH=['Versement','Retrait'];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(n||0);
+const pct=n=>(n>0?'+':'')+new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format((n||0)*100)+' %';
+const dfr=d=>d?String(d).split('-').reverse().join('/'):'';
+const cls=n=>n>0?'up':n<0?'dn':'', arw=n=>n>0?'▲ ':n<0?'▼ ':'';
+const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||'';localStorage.setItem(k,v)}catch{return ''}};
+const S={tx:[],titres:[],cours:{},hist:[],conf:{},tab:'overview',sort:['valeur',-1],q:'',donut:'titre',per:'Max',edit:null,charts:[],loaded:false};
+const TABS=[['overview','Vue d’ensemble'],['positions','Positions'],['transactions','Transactions'],['analyse','Analyse'],['settings','Paramètres']];
+
+async function api(action,data={}){
+  const url=ls('url'); if(!url) throw Error('Renseignez l’URL de l’API dans Paramètres.');
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({token:ls('token'),action,...data})});
+  const j=await r.json(); if(j.error) throw Error(j.error); return j;
+}
+const model=()=>{const pf=computePositions(S.tx);return{pf,v:valuePortfolio(pf,S.cours,S.titres)}};
+
+async function load(quotes=true){
+  try{
+    const d=await api('load'); Object.assign(S,{tx:d.transactions,titres:d.titres,hist:d.historique,conf:d.config,loaded:true,error:''});
+    render();
+    if(quotes){const tk=model().v.rows.map(r=>r.ticker); if(tk.length){S.cours=await api('quotes',{tickers:tk}); S.ts=new Date();}}
+  }catch(e){S.error=e.message}
+  render();
+}
+function render(){
+  const {pf,v}=model(), inv=pf.deposits, gain=v.total-inv, dp=v.total-v.day?v.day/(v.total-v.day):0;
+  $('#total').textContent=eur(v.total);
+  $('#perf').innerHTML=`<b class="${cls(gain)}">${arw(gain)}${eur(gain)} (${pct(inv?gain/inv:0)})</b>`;
+  $('#day').innerHTML=`<b class="${cls(v.day)}">${arw(v.day)}${eur(v.day)} (${pct(dp)})</b>`;
+  $('#ts').textContent=S.ts?'· cours du '+S.ts.toLocaleString('fr-FR'):'';
+  $('#plaf').style.width=Math.min(100,inv/PLAF*100)+'%';
+  $('#plaftxt').textContent=`Versé ${eur(inv)} sur ${eur(PLAF)} de plafond (${(inv/PLAF*100).toFixed(1).replace('.',',')} %)`;
+  $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-t="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
+  S.charts.forEach(c=>c.destroy()); S.charts=[];
+  const m=$('#view');
+  if(S.error&&S.tab!=='settings'){m.innerHTML=`<div class="card err">${esc(S.error)} <button class="b" data-t="settings">Paramètres</button></div>`;return}
+  if(!S.loaded){return}
+  if(!S.tx.length&&S.tab!=='settings'){m.innerHTML=`<div class="card"><h3>Bienvenue</h3><p>Votre PEA est vide. Ajoutez un premier versement, puis vos achats : le tableau de bord se calcule tout seul.</p><button class="b pri" data-act="add">Ajouter une transaction</button></div>`;return}
+  m.innerHTML=({overview:vOverview,positions:vPositions,transactions:vTx,analyse:vAnalyse,settings:vSettings}[S.tab])(pf,v);
+  ({overview:cOverview}[S.tab]||(()=>{}))(pf,v);
+}
+const th=(k,l)=>`<th data-sort="${k}">${l}${S.sort[0]===k?(S.sort[1]>0?' ↑':' ↓'):''}</th>`;
+
+function vOverview(pf,v){
+  const top=[...v.rows].sort((a,b)=>b.pvPct-a.pvPct), li=r=>`<div class="kv"><span>${esc(r.nom||r.ticker)}</span><b class="${cls(r.pvPct)}">${pct(r.pvPct)}</b></div>`;
+  return `<div class="card"><div class="row"><b>Valeur et capital investi</b><select id="per">${['1M','6M','1A','Max'].map(p=>`<option ${p===S.per?'selected':''}>${p}</option>`).join('')}</select></div><canvas id="c1" height="140"></canvas></div>
+  <div class="grid"><div class="card"><div class="row"><b>Répartition</b><select id="don">${[['titre','Par titre'],['secteur','Secteur'],['zone','Zone'],['type','Type']].map(([k,l])=>`<option value="${k}" ${k===S.donut?'selected':''}>${l}</option>`).join('')}</select></div><canvas id="c2" height="200"></canvas></div>
+  <div class="card"><b>Meilleures lignes</b>${top.slice(0,3).map(li).join('')}<br><b>Moins bonnes lignes</b>${top.slice(-3).reverse().map(li).join('')}</div></div>`;
+}
+function cOverview(pf,v){
+  const days={'1M':31,'6M':183,'1A':366,Max:1e5}, lim=new Date(Date.now()-days[S.per]*864e5).toISOString().slice(0,10);
+  const h=S.hist.filter(r=>r.date>=lim), c1=$('#c1');
+  if(h.length<2) c1.replaceWith(Object.assign(document.createElement('p'),{className:'mu',textContent:'La courbe apparaîtra après 2 snapshots quotidiens (trigger de 18h).'}));
+  else S.charts.push(new Chart(c1,{type:'line',data:{labels:h.map(r=>dfr(r.date)),datasets:[{label:'Valeur',data:h.map(r=>r.valeur_totale),borderColor:'#8fb4ff',pointRadius:0,tension:.2},{label:'Investi',data:h.map(r=>r.investi),borderColor:'#8795a0',borderDash:[5,4],pointRadius:0}]},options:{plugins:{legend:{labels:{color:'#8795a0'}}},scales:{x:{ticks:{color:'#8795a0',maxTicksLimit:6}},y:{ticks:{color:'#8795a0'}}}}}));
+  const g={};v.rows.forEach(r=>{const k=S.donut==='titre'?(r.nom||r.ticker):(r[S.donut]||'Non renseigné');g[k]=(g[k]||0)+r.valeur});
+  S.charts.push(new Chart($('#c2'),{type:'doughnut',data:{labels:Object.keys(g),datasets:[{data:Object.values(g),borderWidth:0,backgroundColor:['#8fb4ff','#3fb68b','#e5b45f','#e5626b','#a98be8','#5fc4d6','#c8d86a','#e08fb3']}]},options:{plugins:{legend:{position:'bottom',labels:{color:'#8795a0'}}}}}));
+}
+function vPositions(pf,v){
+  const q=S.q.toLowerCase(), [k,d]=S.sort;
+  const rows=v.rows.filter(r=>[r.nom,r.ticker,r.isin,r.secteur,r.zone].join(' ').toLowerCase().includes(q)).sort((a,b)=>(typeof a[k]==='string'?String(a[k]).localeCompare(b[k]):a[k]-b[k])*d);
+  return `<div class="card"><input id="q" placeholder="Rechercher un titre, secteur, zone…" value="${esc(S.q)}" style="width:100%;margin-bottom:10px"><div class="tw"><table><tr>${th('nom','Titre')}${th('type','Type')}${th('qty','Qté')}${th('pru','PRU')}${th('cours','Cours')}${th('jourPct','Jour')}${th('valeur','Valeur')}${th('pv','+/- value')}${th('poids','Poids')}</tr>
+  ${rows.map(r=>`<tr><td>${esc(r.nom||r.ticker)}<div class="mu">${esc(r.ticker)} ${esc(r.isin||'')} ${esc(r.secteur||'')} ${esc(r.zone||'')}</div></td><td>${esc(r.type||'')}</td><td>${r.qty}</td><td>${eur(r.pru)}</td><td>${eur(r.cours)}${r.stale?'<span class="badge">cours différé</span>':''}</td><td class="${cls(r.jourPct)}">${pct(r.jourPct)}</td><td>${eur(r.valeur)}</td><td class="${cls(r.pv)}">${eur(r.pv)}<div>${pct(r.pvPct)}</div></td><td>${(r.poids*100).toFixed(1).replace('.',',')} %</td></tr>`).join('')}</table></div></div>`;
+}
+function vTx(){
+  const rows=[...S.tx].sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="card tw"><table><tr><th>Date</th><th>Type</th><th>Titre</th><th>Qté</th><th>Prix</th><th>Frais</th><th>Total</th><th></th></tr>${rows.map(t=>`<tr><td>${dfr(t.date)}</td><td>${esc(t.type)}</td><td>${esc(t.nom||t.ticker)}</td><td>${t.quantite}</td><td>${eur(t.prix_unitaire)}</td><td>${eur(t.frais)}</td><td>${eur(t.montant_total)}</td><td><button class="b" data-edit="${esc(t.id)}">Modifier</button> <button class="b" data-del="${esc(t.id)}">Suppr.</button></td></tr>`).join('')}</table></div>`;
+}
+function vAnalyse(pf,v){
+  const inv=pf.deposits, ratio=(d)=>{const h=S.hist.find(r=>r.date>=d&&r.investi>0);return h&&inv?(v.total/inv)/(h.valeur_totale/h.investi)-1:null};
+  const ago=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10), f=x=>x==null?'—':pct(x);
+  const flows=[...S.tx].filter(t=>CASH.includes(t.type)).map(t=>({date:new Date(t.date),amount:(t.type==='Versement'?-1:1)*t.quantite*t.prix_unitaire}));
+  flows.sort((a,b)=>a.date-b.date); flows.push({date:new Date(),amount:v.total});
+  const tri=xirr(flows), rs=S.hist.filter(r=>r.investi>0).map(r=>r.valeur_totale/r.investi);
+  const seuil=+S.conf.seuil_concentration||25, alerts=v.rows.filter(r=>r.poids*100>seuil);
+  const open=S.conf.ouverture, yrs=open?(Date.now()-new Date(open))/31557600000:null;
+  const kv=(a,b)=>`<div class="kv"><span>${a}</span><b>${b}</b></div>`, vol=volatility(rs);
+  return `<div class="grid"><div class="card"><b>Performance (approx., hors flux)</b>${kv('1 jour',pct(v.total-v.day?v.day/(v.total-v.day):0))}${kv('1 semaine',f(ratio(ago(7))))}${kv('1 mois',f(ratio(ago(31))))}${kv('Depuis le 1er janvier',f(ratio(new Date().getFullYear()+'-01-01')))}${kv('1 an',f(ratio(ago(366))))}${kv('Depuis l’origine',pct(inv?(v.total-inv)/inv:0))}${kv('TRI annualisé (XIRR)',tri==null?'—':pct(tri))}</div>
+  <div class="card"><b>Risque et coûts</b>${kv('Volatilité annualisée',vol==null?'—':pct(vol).replace('+',''))}${kv('Drawdown maximum',rs.length>1?pct(maxDrawdown(rs)):'—')}${kv('Dividendes perçus',eur(pf.divs))}${kv('Frais de courtage cumulés',eur(pf.fees))}${kv('Ancienneté du PEA',yrs==null?'Date d’ouverture à saisir':yrs.toFixed(1).replace('.',',')+' ans '+(yrs>=5?'(avantage fiscal acquis)':'(avant 5 ans)'))}
+  ${alerts.length?`<p class="err">Concentration &gt; ${seuil} % : ${alerts.map(r=>esc(r.nom||r.ticker)+' '+(r.poids*100).toFixed(1)+' %').join(', ')}</p>`:`<p class="mu">Aucune ligne au-dessus de ${seuil} %.</p>`}</div></div>
+  <div class="card"><b>Dividendes</b>${S.tx.filter(t=>t.type==='Dividende').sort((a,b)=>b.date.localeCompare(a.date)).map(t=>kv(dfr(t.date)+' · '+esc(t.nom||t.ticker),eur(t.montant_total))).join('')||'<p class="mu">Aucun dividende.</p>'}</div>`;
+}
+function vSettings(){
+  return `<div class="card"><label>URL de l’API Apps Script</label><input id="s_url" value="${esc(ls('url'))}"><label>Token secret</label><input id="s_tok" type="password" value="${esc(ls('token'))}">
+  <label>Date d’ouverture du PEA</label><input id="s_open" type="date" value="${esc(S.conf.ouverture||'')}"><label>Seuil de concentration (%)</label><input id="s_seuil" type="number" value="${esc(S.conf.seuil_concentration||25)}">
+  <p><button class="b pri" id="s_save">Enregistrer</button> <button class="b" id="theme">Mode clair / sombre</button></p>
+  <p><button class="b" id="x_pos">Exporter les positions (CSV)</button> <button class="b" id="x_tx">Exporter les transactions (CSV)</button></p><div class="err">${esc(S.error||'')}</div></div>`;
+}
+function csv(name,rows){
+  const c=v=>`"${String(v??'').replace(/"/g,'""')}"`, k=Object.keys(rows[0]||{});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([[k.map(c).join(';'),...rows.map(r=>k.map(x=>c(r[x])).join(';'))].join('\n')],{type:'text/csv'})),download:name});a.click();
+}
+
+// ----- Modal transaction -----
+const dlg=$('#dlg'), frm=$('#frm');
+function fillForm(t={}){
+  frm.reset(); S.edit=t.id||null; $('#dtitle').textContent=t.id?'Modifier la transaction':'Nouvelle transaction'; $('#ferr').textContent='';
+  frm.date.value=t.date||new Date().toISOString().slice(0,10); frm.type.value=t.type||'Achat';
+  ['ticker','isin','nom','quantite','prix_unitaire','frais','commentaire'].forEach(k=>frm[k].value=t[k]??(k==='frais'?0:''));
+  const m=S.titres.find(x=>x.ticker===t.ticker)||{}; frm.ttype.value=m.type||'ETF'; frm.secteur.value=m.secteur||''; frm.zone.value=m.zone||''; $('#fq').value=t.nom||''; $('#res').innerHTML=''; toggle();
+  dlg.showModal();
+}
+function toggle(){const c=CASH.includes(frm.type.value);document.querySelectorAll('.tonly').forEach(e=>e.style.display=c?'none':'');$('#lprix').textContent=c?'Montant (€)':frm.type.value==='Dividende'?'Dividende par titre (€)':'Prix unitaire (€)'}
+function validate(t){
+  if(!t.date) return 'Date requise.'; if(!(t.prix_unitaire>=0)||(CASH.includes(t.type)&&!(t.prix_unitaire>0))) return 'Montant ou prix invalide.';
+  if(t.frais<0) return 'Frais négatifs impossibles.';
+  if(!CASH.includes(t.type)){
+    if(!/^[A-Z0-9.\-]{1,15}$/.test(t.ticker)) return 'Ticker invalide (ex. CW8.PA).'; if(!(t.quantite>0)) return 'Quantité positive requise.';
+    if(t.type==='Vente'){const p=computePositions(S.tx.filter(x=>x.id!==S.edit&&x.date<=t.date)).positions.find(x=>x.ticker===t.ticker);if(!p||p.qty<t.quantite) return `Vente impossible : ${p?p.qty:0} titre(s) détenu(s) à cette date.`}
+  }
+  if(t.type==='Retrait'&&t.prix_unitaire>computePositions(S.tx.filter(x=>x.id!==S.edit)).cash+1e-9) return 'Retrait supérieur aux liquidités.';
+  return '';
+}
+frm.type.onchange=toggle;
+let tmr; $('#fq').oninput=e=>{clearTimeout(tmr);tmr=setTimeout(async()=>{try{const r=await api('search',{q:e.target.value});$('#res').innerHTML=r.map((x,i)=>`<button type="button" data-pick="${i}">${esc(x.nom)} · ${esc(x.ticker)}</button>`).join('');S.found=r}catch{}},300)};
+frm.addEventListener('submit',async ev=>{
+  ev.preventDefault(); const f=frm, cash=CASH.includes(f.type.value);
+  const tx={id:S.edit||'',date:f.date.value,type:f.type.value,ticker:cash?'':f.ticker.value.trim().toUpperCase(),isin:f.isin.value.trim().toUpperCase(),nom:f.nom.value.trim(),quantite:cash?1:+f.quantite.value,prix_unitaire:+f.prix_unitaire.value,frais:+f.frais.value||0,commentaire:f.commentaire.value};
+  const e=validate(tx); if(e){$('#ferr').textContent=e;return}
+  $('#save').disabled=true;
+  try{await api(S.edit?'txUpdate':'txAdd',{tx,titre:cash?null:{ticker:tx.ticker,isin:tx.isin,nom:tx.nom,type:f.ttype.value,secteur:f.secteur.value,zone:f.zone.value,devise:'EUR',source_cours:'yahoo'}});dlg.close();await load(true)}
+  catch(x){$('#ferr').textContent=x.message}finally{$('#save').disabled=false}
+});
+$('#cancel').onclick=()=>dlg.close();
+
+// ----- Événements -----
+document.addEventListener('click',async e=>{
+  const t=e.target, d=t.dataset||{};
+  if(d.t){S.tab=d.t;render()} else if(d.sort){S.sort=[d.sort,S.sort[0]===d.sort?-S.sort[1]:-1];render()}
+  else if(d.act==='add')fillForm(); else if(d.edit)fillForm(S.tx.find(x=>x.id===d.edit));
+  else if(d.del&&confirm('Supprimer cette transaction ?')){try{await api('txDelete',{id:d.del});await load(false)}catch(x){alert(x.message)}}
+  else if(d.pick){const r=S.found[+d.pick];frm.ticker.value=r.ticker;frm.nom.value=r.nom;frm.ttype.value=r.type;$('#fq').value=r.nom;$('#res').innerHTML=''}
+  else if(t.id==='s_save'){ls('url',$('#s_url').value.trim());ls('token',$('#s_tok').value.trim());try{await api('saveConfig',{cle:'ouverture',valeur:$('#s_open').value});await api('saveConfig',{cle:'seuil_concentration',valeur:$('#s_seuil').value});await load(true)}catch(x){S.error=x.message;render()}}
+  else if(t.id==='theme')setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+  else if(t.id==='x_pos')csv('positions.csv',model().v.rows.map(r=>({ticker:r.ticker,nom:r.nom,qty:r.qty,pru:r.pru,cours:r.cours,valeur:r.valeur,pv:r.pv})));
+  else if(t.id==='x_tx')csv('transactions.csv',S.tx);
+});
+document.addEventListener('change',e=>{if(e.target.id==='per'){S.per=e.target.value;render()}if(e.target.id==='don'){S.donut=e.target.value;render()}});
+document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;const p=e.target.selectionStart;render();$('#q').focus();$('#q').setSelectionRange(p,p)}});
+$('#add').onclick=()=>fillForm(); $('#refresh').onclick=()=>load(true);
+function setTheme(t){document.documentElement.dataset.theme=t;ls('theme',t)} setTheme(ls('theme')||'dark');
+S.tab=ls('url')?'overview':'settings'; if(!ls('url')){S.loaded=true} load(true);
+</script>
+</body></html>
